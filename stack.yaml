@@ -1,0 +1,5 @@
+resolver: lts-17.10
+extra-deps:
+  - cairo-0.13.8.1
+  - Chart-cairo-1.9.3
+  - gtk2hs-buildtools-0.13.8.0
