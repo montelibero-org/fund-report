@@ -6,6 +6,7 @@ import           Data.Aeson (FromJSON)
 import           Data.Default (def)
 import           Data.Function ((&))
 import           Data.List (sortOn)
+import           Data.Map.Strict ((!?))
 import qualified Data.Map.Strict as Map
 import           Data.Ord (Down (..))
 import           Data.Ratio ((%))
@@ -37,8 +38,7 @@ data Holder = Holder{account, balance :: String}
 
 data Member = Member{account :: String, balance :: Rational}
 
-data Foundation = Foundation
-  {assetName, assetIssuer :: String, treasury :: Maybe String}
+data Fund = Fund{assetName, assetIssuer :: String, treasury :: Maybe String}
 
 main :: IO ()
 main =
@@ -49,9 +49,10 @@ main =
     let
       grid =
         aboveN
-          [ pieToGrid $ membersPie mtl     mtlMembers
-          , pieToGrid $ membersPie mtlcity mtlcityMembers
-          , pieToGrid $ membersPie mtlcity mtlcityViaMtlMembers
+          [ pieToGrid $ membersPie "MTL members"            mtlMembers
+          , pieToGrid $ membersPie "MTLCITY direct members" mtlcityMembers
+          , pieToGrid $
+            membersPie "MTLCITY members via MTL" mtlcityViaMtlMembers
           ]
     void $
       renderableToFile fileOptions reportFile $
@@ -59,7 +60,7 @@ main =
       gridToRenderable grid
   where
     mtl =
-      Foundation
+      Fund
         { assetName = "MTL"
         , assetIssuer =
             "GACKTN5DAZGWXRWB2WLM6OPBDHAMT6SJNGLJZPQMEZBUR4JUGBX2UK7V"
@@ -67,7 +68,7 @@ main =
             Just "GDX23CPGMQ4LN55VGEDVFZPAJMAUEHSHAMJ2GMCU2ZSHN5QF4TMZYPIS"
         }
     mtlcity =
-      Foundation
+      Fund
         { assetName = "MTLCITY"
         , assetIssuer =
             "GDUI7JVKWZV4KJVY4EJYBXMGXC2J3ZC67Z6O5QFP4ZMVQM2U5JXK2OK3"
@@ -76,19 +77,19 @@ main =
     reportFile  = "report.png"
     fileOptions = def & fo_size .~ (1000, 1500)
 
-assetId :: Foundation -> String
-assetId Foundation{assetName, assetIssuer} = assetName <> "-" <> assetIssuer
+assetId :: Fund -> String
+assetId Fund{assetName, assetIssuer} = assetName <> "-" <> assetIssuer
 
-membersPie :: Foundation -> [Member] -> PieLayout
-membersPie Foundation{assetName} members =
+membersPie :: String -> [Member] -> PieLayout
+membersPie title members =
   execEC $ do
-    pie_title .= assetName <> " holders/members"
+    pie_title .= title
     pie_plot . pie_label_style . font_size .= 20
     pie_plot . pie_data .=
       [ def &~ do
           pitem_value .= realToFrac balance
           pitem_label .=
-            "..." <> drop (length account - 4) account <> ", " <>
+            memberName account <> ", " <>
             showLocal ' ' (round balance :: Integer) <>
             ", " <> printf "%.1f%%" (realToFrac share :: Double)
       | Member{account, balance} <- members
@@ -96,6 +97,19 @@ membersPie Foundation{assetName} members =
       ]
   where
     sumBalance = sum $ map (\Member{..} -> balance) members
+
+memberName :: String -> String
+memberName account =
+  case knownAccounts !? account of
+    Just name -> name
+    Nothing   -> "..." <> drop (length account - 4) account
+  where
+    knownAccounts =
+      Map.fromList
+        [ ( "GDX23CPGMQ4LN55VGEDVFZPAJMAUEHSHAMJ2GMCU2ZSHN5QF4TMZYPIS"
+          , "MTL treasury"
+          )
+        ]
 
 pieToGrid :: PieLayout -> Grid (Renderable (PickFn a))
 pieToGrid PieLayout{_pie_margin, _pie_plot, _pie_title, _pie_title_style} =
@@ -108,9 +122,9 @@ pieToGrid PieLayout{_pie_margin, _pie_plot, _pie_title, _pie_title_style} =
   where
     title = label _pie_title_style HTA_Centre VTA_Top _pie_title
 
-getMembers :: Foundation -> IO [Member]
-getMembers foundation@Foundation{treasury} = do
-  holders <- getHolders foundation
+getMembers :: Fund -> IO [Member]
+getMembers fund@Fund{treasury} = do
+  holders <- getHolders fund
   pure
     [ Member{account, balance = read @Integer balance % 10_000_000}
     | Holder{account, balance} <- holders
@@ -118,15 +132,15 @@ getMembers foundation@Foundation{treasury} = do
     ]
 
 
-getHolders :: Foundation -> IO [Holder]
-getHolders foundation =
+getHolders :: Fund -> IO [Holder]
+getHolders fund =
   do
     r <-
       asJSON =<<
       get
         (concat
           [ "https://api.stellar.expert/explorer/", network
-          , "/asset/", assetId foundation, "/holders"
+          , "/asset/", assetId fund, "/holders"
           ])
     let ResponseOk{_embedded = Embedded{records}} = r ^. responseBody
     pure records
@@ -138,8 +152,8 @@ showLocal groupSeparator = snd . foldr go (0 :: Int, "") . show where
   go c (len, r) =
     (len + 1, c : [groupSeparator | len `mod` 3 == 0, len > 0] ++ r)
 
-substMembers :: Foundation -> [Member] -> [Member] -> [Member]
-substMembers Foundation{treasury = parentTreasury} parentMembers members =
+substMembers :: Fund -> [Member] -> [Member] -> [Member]
+substMembers Fund{treasury = parentTreasury} parentMembers members =
   map (\(account, balance) -> Member{..}) $
     sortOn (Down . snd) $
     Map.assocs $
