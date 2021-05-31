@@ -5,6 +5,7 @@ import           Control.Monad                          (void)
 import           Data.Aeson                             (FromJSON)
 import           Data.Default                           (def)
 import           Data.Function                          ((&))
+import           Data.Ratio                             ((%))
 import           GHC.Generics                           (Generic)
 import           Graphics.Rendering.Chart               (HTextAnchor (HTA_Centre),
                                                          PickFn, PieLayout (..),
@@ -78,16 +79,18 @@ assetId Foundation{assetName, assetIssuer} = assetName <> "-" <> assetIssuer
 holdersPie :: Foundation -> [Holder] -> PieLayout
 holdersPie Foundation{assetName, treasury} holders =
   execEC $ do
-    pie_title .= assetName <> " asset holders"
+    pie_title .= assetName <> " asset holders/members"
     pie_plot . pie_data .=
-        [ pitem (read balance) account
-        | Holder{account, balance} <- holders
-        , Just account /= treasury
-        ]
-  where
-    pitem value lbl = def &~ do
-      pitem_value .= value
-      pitem_label .= lbl
+      [ def &~ do
+          pitem_value .= balanceD
+          pitem_label .= account <> ", " <> show (realToFrac balanceL :: Double)
+      | Holder{account, balance} <- holders
+      , Just account /= treasury
+      , let
+        balanceI = read @Integer balance
+        balanceD = fromIntegral balanceI
+        balanceL = balanceI % 10_000_000
+      ]
 
 pieToGrid :: PieLayout -> Grid (Renderable (PickFn a))
 pieToGrid PieLayout{_pie_margin, _pie_plot, _pie_title, _pie_title_style} =
