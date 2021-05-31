@@ -27,6 +27,22 @@ import           Graphics.Rendering.Chart.Grid (Grid, aboveN, gridToRenderable,
 import           Network.Wreq (asJSON, get, responseBody)
 import           Text.Printf (printf)
 
+mtl :: Fund
+mtl =
+  Fund
+    { assetName   = "MTL"
+    , assetIssuer = "GACKTN5DAZGWXRWB2WLM6OPBDHAMT6SJNGLJZPQMEZBUR4JUGBX2UK7V"
+    , treasury = Just "GDX23CPGMQ4LN55VGEDVFZPAJMAUEHSHAMJ2GMCU2ZSHN5QF4TMZYPIS"
+    }
+
+mtlcity :: Fund
+mtlcity =
+  Fund
+    { assetName   = "MTLCITY"
+    , assetIssuer = "GDUI7JVKWZV4KJVY4EJYBXMGXC2J3ZC67Z6O5QFP4ZMVQM2U5JXK2OK3"
+    , treasury    = Nothing
+    }
+
 newtype ResponseOk a = ResponseOk{_embedded :: Embedded a}
   deriving (FromJSON, Generic)
 
@@ -59,21 +75,6 @@ main =
       fillBackground def $
       gridToRenderable grid
   where
-    mtl =
-      Fund
-        { assetName = "MTL"
-        , assetIssuer =
-            "GACKTN5DAZGWXRWB2WLM6OPBDHAMT6SJNGLJZPQMEZBUR4JUGBX2UK7V"
-        , treasury =
-            Just "GDX23CPGMQ4LN55VGEDVFZPAJMAUEHSHAMJ2GMCU2ZSHN5QF4TMZYPIS"
-        }
-    mtlcity =
-      Fund
-        { assetName = "MTLCITY"
-        , assetIssuer =
-            "GDUI7JVKWZV4KJVY4EJYBXMGXC2J3ZC67Z6O5QFP4ZMVQM2U5JXK2OK3"
-        , treasury = Nothing
-        }
     reportFile  = "report.png"
     fileOptions = def & fo_size .~ (1000, 1500)
 
