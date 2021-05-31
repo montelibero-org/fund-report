@@ -20,6 +20,8 @@ executable capital
   default-extensions:
     DeriveAnyClass
     DeriveGeneric
+    DisambiguateRecordFields
+    DuplicateRecordFields
     FlexibleContexts
     FlexibleInstances
     NamedFieldPuns
