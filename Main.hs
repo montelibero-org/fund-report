@@ -1,32 +1,27 @@
 module Main (main) where
 
-import           Control.Lens                           ((&~), (.=), (.~), (^.))
-import           Control.Monad                          (void)
-import           Data.Aeson                             (FromJSON)
-import           Data.Default                           (def)
-import           Data.Function                          ((&))
-import           Data.Ratio                             ((%))
-import           GHC.Generics                           (Generic)
-import           Graphics.Rendering.Chart               (HTextAnchor (HTA_Centre),
-                                                         PickFn, PieLayout (..),
-                                                         Renderable,
-                                                         VTextAnchor (VTA_Top),
-                                                         addMargins,
-                                                         fillBackground, label,
-                                                         nullPickFn,
-                                                         pieChartToRenderable,
-                                                         pie_data, pie_plot,
-                                                         pie_title, pitem_label,
-                                                         pitem_value, setPickFn)
+import           Control.Lens ((&~), (.=), (.~), (^.))
+import           Control.Monad (void)
+import           Data.Aeson (FromJSON)
+import           Data.Default (def)
+import           Data.Function ((&))
+import           Data.Ratio ((%))
+import           GHC.Generics (Generic)
+import           Graphics.Rendering.Chart (HTextAnchor (HTA_Centre), PickFn,
+                                           PieLayout (..), Renderable,
+                                           VTextAnchor (VTA_Top), addMargins,
+                                           fillBackground, font_size, label,
+                                           nullPickFn, pieChartToRenderable,
+                                           pie_data, pie_label_style, pie_plot,
+                                           pie_title, pitem_label, pitem_value,
+                                           setPickFn)
 import           Graphics.Rendering.Chart.Backend.Cairo (fo_size,
                                                          renderableToFile)
-import           Graphics.Rendering.Chart.Easy          (execEC)
-import           Graphics.Rendering.Chart.Grid          (Grid, aboveN,
-                                                         gridToRenderable, tval,
-                                                         weights)
-import           Network.Wreq                           (asJSON, get,
-                                                         responseBody)
-import           Text.Printf                            (printf)
+import           Graphics.Rendering.Chart.Easy (execEC)
+import           Graphics.Rendering.Chart.Grid (Grid, aboveN, gridToRenderable,
+                                                tval, weights)
+import           Network.Wreq (asJSON, get, responseBody)
+import           Text.Printf (printf)
 
 newtype ResponseOk a = ResponseOk{_embedded :: Embedded a}
   deriving (FromJSON, Generic)
@@ -80,18 +75,19 @@ assetId Foundation{assetName, assetIssuer} = assetName <> "-" <> assetIssuer
 holdersPie :: Foundation -> [Holder] -> PieLayout
 holdersPie Foundation{assetName, treasury} holders =
   execEC $ do
-    pie_title .= assetName <> " asset holders/members"
+    pie_title .= assetName <> " holders/members"
+    pie_plot . pie_label_style . font_size .= 20
     pie_plot . pie_data .=
       [ def &~ do
-          pitem_value .= balanceD
+          pitem_value .= balanceFloat
           pitem_label .=
-            account <> ", " <> show (round balanceL :: Integer) <> ", " <>
-            printf "%.1f" share <> "%"
-      | (account, balanceI) <- members
+            "..." <> drop (length account - 4) account <> ", " <>
+            showLocal ' ' (round (balanceInt % 10_000_000) :: Integer) <>
+            ", " <> printf "%.1f" share <> "%"
+      | (account, balanceInt) <- members
       , let
-        balanceD = fromIntegral balanceI
-        balanceL = balanceI % 10_000_000
-        share = balanceD / fromIntegral sumBalance * 100
+        balanceFloat = fromIntegral balanceInt
+        share = balanceFloat / fromIntegral sumBalance * 100
       ]
   where
     members =
@@ -126,3 +122,8 @@ getHolders asset =
     pure records
   where
     network = "public"
+
+showLocal :: Char -> Integer -> String
+showLocal groupSeparator = snd . foldr go (0 :: Int, "") . show where
+  go c (len, r) =
+    (len + 1, c : [groupSeparator | len `mod` 3 == 0, len > 0] ++ r)
