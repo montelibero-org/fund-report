@@ -26,6 +26,7 @@ import           Graphics.Rendering.Chart.Grid          (Grid, aboveN,
                                                          weights)
 import           Network.Wreq                           (asJSON, get,
                                                          responseBody)
+import           Text.Printf                            (printf)
 
 newtype ResponseOk a = ResponseOk{_embedded :: Embedded a}
   deriving (FromJSON, Generic)
@@ -83,14 +84,22 @@ holdersPie Foundation{assetName, treasury} holders =
     pie_plot . pie_data .=
       [ def &~ do
           pitem_value .= balanceD
-          pitem_label .= account <> ", " <> show (realToFrac balanceL :: Double)
-      | Holder{account, balance} <- holders
-      , Just account /= treasury
+          pitem_label .=
+            account <> ", " <> show (round balanceL :: Integer) <> ", " <>
+            printf "%.1f" share <> "%"
+      | (account, balanceI) <- members
       , let
-        balanceI = read @Integer balance
         balanceD = fromIntegral balanceI
         balanceL = balanceI % 10_000_000
+        share = balanceD / fromIntegral sumBalance * 100
       ]
+  where
+    members =
+      [ (account, read @Integer balance)
+      | Holder{account, balance} <- holders
+      , Just account /= treasury
+      ]
+    sumBalance = sum $ map snd members
 
 pieToGrid :: PieLayout -> Grid (Renderable (PickFn a))
 pieToGrid PieLayout{_pie_margin, _pie_plot, _pie_title, _pie_title_style} =
