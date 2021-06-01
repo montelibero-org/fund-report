@@ -107,9 +107,8 @@ memberName account =
   where
     knownAccounts =
       Map.fromList
-        [ ( "GDX23CPGMQ4LN55VGEDVFZPAJMAUEHSHAMJ2GMCU2ZSHN5QF4TMZYPIS"
-          , "MTL treasury"
-          )
+        [ "GDX23CPGMQ4LN55VGEDVFZPAJMAUEHSHAMJ2GMCU2ZSHN5QF4TMZYPIS" :-
+            "MTL treasury"
         ]
 
 pieToGrid :: PieLayout -> Grid (Renderable (PickFn a))
@@ -172,3 +171,6 @@ substMembers Fund{treasury = parentTreasury} parentMembers members =
       ]
   where
     sumParent = sum $ map (\Member{..} -> balance) parentMembers
+
+pattern (:-) :: a -> b -> (a, b)
+pattern a :- b = (a, b)

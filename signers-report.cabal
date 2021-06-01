@@ -27,6 +27,7 @@ executable capital
     NamedFieldPuns
     NumericUnderscores
     OverloadedStrings
+    PatternSynonyms
     RecordWildCards
     StrictData
     TypeApplications
