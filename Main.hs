@@ -131,21 +131,20 @@ getMembers fund@Fund{treasury} = do
     , Just account /= treasury
     ]
 
-
 getHolders :: Fund -> IO [Holder]
 getHolders fund =
   do
-    r <-
-      asJSON =<<
-      get
-        (concat
-          [ "https://api.stellar.expert/explorer/", network
-          , "/asset/", assetId fund, "/holders"
-          ])
+    r <- asJSON =<< get url
     let ResponseOk{_embedded = Embedded{records}} = r ^. responseBody
     pure records
   where
     network = "public"
+    url =
+      concat
+        [ "https://api.stellar.expert/explorer/", network
+        , "/asset/", assetId fund
+        , "/holders"
+        ]
 
 showLocal :: Char -> Integer -> String
 showLocal groupSeparator = snd . foldr go (0 :: Int, "") . show where
