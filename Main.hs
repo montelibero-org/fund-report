@@ -6,10 +6,11 @@ import           Data.Aeson (FromJSON)
 import           Data.Default (def)
 import           Data.Function ((&))
 import           Data.List (sortOn)
-import           Data.Map.Strict ((!?))
+import           Data.Map.Strict (Map, (!?))
 import qualified Data.Map.Strict as Map
 import           Data.Ord (Down (..))
 import           Data.Ratio ((%))
+import qualified Data.Yaml as Yaml
 import           GHC.Generics (Generic)
 import           Graphics.Rendering.Chart (HTextAnchor (HTA_Centre), PickFn,
                                            PieLayout (..), Renderable,
@@ -59,16 +60,22 @@ data Fund = Fund{assetName, assetIssuer :: String, treasury :: Maybe String}
 main :: IO ()
 main =
   do
+    knownAccounts  <- Yaml.decodeFileThrow "../stellar-id/known_accounts.yaml"
     mtlMembers     <- getMembers mtl
     mtlcityMembers <- getMembers mtlcity
     let mtlcityViaMtlMembers = substMembers mtl mtlMembers mtlcityMembers
     let
       grid =
         aboveN
-          [ pieToGrid $ membersPie "MTL members"            mtlMembers
-          , pieToGrid $ membersPie "MTLCITY direct members" mtlcityMembers
+          [ pieToGrid $
+            membersPie knownAccounts "MTL members" mtlMembers
           , pieToGrid $
-            membersPie "MTLCITY members via MTL" mtlcityViaMtlMembers
+            membersPie knownAccounts "MTLCITY direct members" mtlcityMembers
+          , pieToGrid $
+            membersPie
+              knownAccounts
+              "MTLCITY members via MTL"
+              mtlcityViaMtlMembers
           ]
     void $
       renderableToFile fileOptions reportFile $
@@ -81,8 +88,8 @@ main =
 assetId :: Fund -> String
 assetId Fund{assetName, assetIssuer} = assetName <> "-" <> assetIssuer
 
-membersPie :: String -> [Member] -> PieLayout
-membersPie title members =
+membersPie :: Map String String -> String -> [Member] -> PieLayout
+membersPie knownAccounts title members =
   execEC $ do
     pie_title .= title
     pie_plot . pie_label_style . font_size .= 20
@@ -90,7 +97,7 @@ membersPie title members =
       [ def &~ do
           pitem_value .= realToFrac balance
           pitem_label .=
-            memberName account <> ", " <>
+            memberName knownAccounts account <> ", " <>
             showLocal ' ' (round balance :: Integer) <>
             ", " <> printf "%.1f%%" (realToFrac share :: Double)
       | Member{account, balance} <- members
@@ -99,17 +106,11 @@ membersPie title members =
   where
     sumBalance = sum $ map (\Member{..} -> balance) members
 
-memberName :: String -> String
-memberName account =
+memberName :: Map String String -> String -> String
+memberName knownAccounts account =
   case knownAccounts !? account of
     Just name -> name
     Nothing   -> "..." <> drop (length account - 4) account
-  where
-    knownAccounts =
-      Map.fromList
-        [ "GDX23CPGMQ4LN55VGEDVFZPAJMAUEHSHAMJ2GMCU2ZSHN5QF4TMZYPIS" :-
-            "MTL treasury"
-        ]
 
 pieToGrid :: PieLayout -> Grid (Renderable (PickFn a))
 pieToGrid PieLayout{_pie_margin, _pie_plot, _pie_title, _pie_title_style} =
@@ -170,6 +171,3 @@ substMembers Fund{treasury = parentTreasury} parentMembers members =
       ]
   where
     sumParent = sum $ map (\Member{..} -> balance) parentMembers
-
-pattern (:-) :: a -> b -> (a, b)
-pattern a :- b = (a, b)

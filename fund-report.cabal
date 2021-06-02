@@ -1,11 +1,11 @@
 cabal-version: 2.2
 
-name: signers-report
+name: fund-report
 version: 2021
 
 build-type: Simple
 
-executable capital
+executable fund-report
   build-depends:
     aeson,
     base,
@@ -17,6 +17,7 @@ executable capital
     data-default,
     lens,
     wreq,
+    yaml,
   default-extensions:
     DeriveAnyClass
     DeriveGeneric
